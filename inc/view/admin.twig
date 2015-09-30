@@ -1,0 +1,30 @@
+{% extends "_base.twig" %}
+{% set back = '/index.php' %}
+{% block content %}
+                <div class="text-center" ng-controller="myQuizCtrl">
+                    <h1 class="screen-title">Admin</h1>
+
+                    <button class="btn btn-default btn-lg" ng-click="teams()"><span class="glyphicon glyphicon-user"></span>  Teams</button>
+					<button class="btn btn-default btn-lg" ng-click="rounds()"><span class="glyphicon glyphicon-question-sign"></span>  Rounds/Questions</button>
+                    <button class="btn btn-default btn-lg"  ng-click="settings()"><span class="glyphicon glyphicon-cog"></span>  Settings</button>
+				</div>
+</form>
+{% endblock %}
+
+{% block script %}
+app.controller("myQuizCtrl", function($scope, $http) {
+
+    $scope.teams  = function() {
+        window.location.assign("/index.php/admin/teams");
+    };
+
+    $scope.rounds  = function() {
+        window.location.assign("/index.php/admin/rounds");
+    };
+
+    $scope.settings = function() {
+        window.location.assign("/index.php/admin/settings");
+    };
+
+});
+{% endblock %}

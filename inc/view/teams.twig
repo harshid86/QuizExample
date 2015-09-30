@@ -1,0 +1,147 @@
+{% extends "_base.twig" %}
+{% set back = '/index.php/admin' %}
+{% block content %}
+                  <div ng-controller="teamsCtrl">
+
+                	  <div>
+                      <h3>Teams</h3>
+                      <table class="table table-striped">
+                        <thead>
+                          <tr>
+                            <th>Team Name</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr ng-repeat="team in teamsList">
+                            <td ng-bind="team.Name"></td>
+                            <td>
+                              <button class="btn btn-default" ng-click="editTeam(team.id)">
+                                <span class="glyphicon glyphicon-pencil"></span>  Edit
+                              </button>
+                              <button class="btn btn-default" ng-click="deleteTeam(team.id)">
+                                <span class="glyphicon glyphicon-remove"></span>  Delete
+                              </button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+
+                      <button ng-show="teamsMode != 'new'" class="btn btn-default" ng-click="newTeam()"><span class="glyphicon glyphicon-plus-sign"></span>  Add New Team</button><br /><br />
+
+                      <div ng-cloak ng-show="teamsMode == 'new'">
+                        <h4>New Team</h4>
+                        <form class="form-horizontal">
+                          <div class="form-group">
+                            <label class="col-sm-2 control-label">Team:</label>
+                            <div class="col-sm-10">
+                              <input class="form-control" type="text" ng-model="teamText" placeholder="Enter Name Here" />
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10">
+                              <button class="btn btn-primary" ng-click="addTeam()" type="submit">Add</button>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+
+                      <div ng-cloak ng-show="teamsMode == 'update'">
+                        <h4>Update Team</h4>
+                        <form class="form-horizontal">
+                          <div class="form-group">
+                            <label class="col-sm-2 control-label">Team:</label>
+                            <div class="col-sm-10">
+                              <input  class="form-control" type="text" ng-model="teamText" placeholder="Enter Name Here">
+                            </div>
+                          </div>
+                          <div class="form-group">
+                            <div class="col-sm-offset-2 col-sm-10">
+                              <button class="btn btn-primary" ng-click="updateTeam()" type="submit">Update</button>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+
+                    </div>
+
+				          </div>
+{% endblock %}
+
+{% block ajs_include %}
+
+<script src="/js/services/httpPost.js"></script>
+{% endblock %}
+
+{% block script %}
+
+app.controller("teamsCtrl", function($scope, $http, httpPost) {
+
+  $scope.init = function() {
+
+		$scope.teamsMode = 'default';
+
+    $scope.clear();
+
+		$scope.loadTeams();
+	}
+
+  $scope.clear = function() {
+    $scope.teamText = "";
+    $scope.teamId = "";
+  }
+
+	$scope.loadTeams = function() {
+    $http.get("/index.php/ajax/loadteams")
+      .success(function(response) {
+        $scope.teamsList = response;
+
+      });
+  }
+
+  $scope.newTeam = function() {
+    $scope.clear();
+
+    $scope.teamsMode = 'new';
+  }
+
+  $scope.addTeam = function() {
+    httpPost.send("/index.php/ajax/addteam", {
+        name: $scope.teamText
+      }).success(function(response) {
+        $scope.init();
+    });
+  }
+
+  $scope.updateTeam = function() {
+    httpPost.send("/index.php/ajax/team/" + $scope.teamId + "/edit", {
+        name: $scope.teamText
+      }).success(function(response) {
+        $scope.init();
+      });
+  }
+
+  $scope.editTeam = function(id) {
+    $scope.clear();
+
+    $http.get("/index.php/ajax/team/" + id)
+      .success(function(response) {
+        $scope.teamText = response.Name;
+        $scope.teamId = response.id;
+
+        $scope.teamsMode = 'update';
+      });
+  }
+
+  $scope.deleteTeam = function(id) {
+
+    $http.get("/index.php/ajax/team/" + id + "delete")
+      .success(function(response) {
+        $scope.init();
+      });
+  }
+
+  $scope.init();
+});
+
+{% endblock %}

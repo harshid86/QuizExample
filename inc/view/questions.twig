@@ -1,0 +1,173 @@
+{% extends "_base.twig" %}
+{% set back = '/index.php/admin/rounds' %}
+{% block content %}
+                <div ng-controller="questionsCtrl">
+                    <h3>Questions</h3>
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Questions</th>
+                          <th>Answers</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr ng-repeat="question in questionsList">
+                          <td>
+                            <span ng-bind="question.Order"></span>&nbsp;
+                            <span>
+                              <button ng-disabled="question.Order == 1" class="btn btn-default btn-sm" ng-click="moveQuestion(question.id, 'up')">
+                                <span class="glyphicon glyphicon-chevron-up"></span>
+                              </button>
+                              <button ng-disabled="question.Order == questionsList.length" class="btn btn-default btn-sm" ng-click="moveOption(question.id, 'down')">
+                                <span class="glyphicon glyphicon-chevron-down"></span>
+                              </button>
+                            </span>
+                          </td>
+                          <td ng-bind="question.QuestionText"></td>
+                          <td>
+                            <button class="btn btn-default" ng-click="configOptions(question.id)">
+                              <span class="glyphicon glyphicon-wrench"></span>  Configure
+                            </button>
+                          </td>
+                          <td>
+                            <button class="btn btn-default" ng-click="editQuestion(question.id)">
+                              <span class="glyphicon glyphicon-pencil"></span>  Edit
+                            </button>
+                            <button class="btn btn-default" ng-click="deleteQuestion(question.id)">
+                              <span class="glyphicon glyphicon-remove"></span>  Delete
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <button ng-show="questionsMode != 'new'" class="btn btn-default" ng-click="newQuestion()"><span class="glyphicon glyphicon-plus-sign"></span>  Add New Question</button><br /><br />
+
+                    <div ng-cloak ng-show="questionsMode == 'new'">
+                      <h4>New Question</h4>
+                      <form class="form-horizontal">
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Question:</label>
+                          <div class="col-sm-10">
+                            <input class="form-control" type="text" ng-model="questionText" placeholder="Enter Question Here" />
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <div class="col-sm-offset-2 col-sm-10">
+                            <button class="btn btn-primary" ng-click="addQuestion()" type="submit">Add</button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div ng-cloak ng-show="questionsMode == 'update'">
+                      <h4 >Update Question</h4>
+                      <form class="form-horizontal">
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Question:</label>
+                          <div class="col-sm-10">
+                            <input class="form-control" type="text" ng-model="questionText" placeholder="Enter Question Here">
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <div class="col-sm-offset-2 col-sm-10">
+                            <button class="btn btn-primary" ng-click="updateQuestion()" type="submit">Update</button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                </div>
+{% endblock %}
+
+{% block ajs_include %}
+
+<script src="/js/services/httpPost.js"></script>
+{% endblock %}
+
+{% block script %}
+app.controller("questionsCtrl", function($scope, $http, httpPost) {
+
+    var roundId = {{ roundId }};
+
+    $scope.loadQuestions = function() {
+      $http.get("/index.php/ajax/round/"+roundId+"/questions")
+        .success(function(response) {
+          $scope.questionsList = response;
+        });
+    }
+
+    $scope.newQuestion = function() {
+      $scope.clear();
+
+      $scope.questionsMode = 'new';
+    }
+
+    $scope.addQuestion = function() {
+      httpPost.send("/index.php/ajax/questions/add", {
+          questionText: $scope.questionText,
+          roundId: roundId
+        }).success(function(response) {
+          $scope.init();
+        });
+    }
+
+    $scope.updateQuestion = function() {
+      httpPost.send("/index.php/ajax/question/" + $scope.questionId + "/edit", {
+          questionText: $scope.questionText
+        }).success(function(response) {
+          $scope.init();
+        });
+    }
+
+    $scope.editQuestion = function(id) {
+      $scope.clear();
+
+      $http.get("/index.php/ajax/question/" + id)
+        .success(function(response) {
+          $scope.questionText = response.QuestionText;
+          $scope.questionId = response.id;
+
+          $scope.questionsMode = 'update';
+        });
+    }
+
+    $scope.moveQuestion = function(id, direction) {
+
+      $http.get("/index.php/ajax/question/" + id + "/move" + direction)
+        .success(function(response) {
+          $scope.loadQuestions();
+        });
+    }
+
+    $scope.deleteQuestion = function(id) {
+
+      $http.get("/index.php/ajax/question/" + id + "/delete")
+        .success(function(response) {
+          $scope.init();
+        });
+    }
+
+    $scope.configOptions = function(id) {
+      window.location.assign("/index.php/admin/round/"+roundId+"/question/"+id+"/options");
+    }
+
+    $scope.clear = function() {
+      $scope.questionText = '';
+      $scope.questionId = '';
+    }
+
+    $scope.init = function() {
+      $scope.questionsMode = 'default';
+
+      $scope.clear();
+
+      $scope.loadQuestions();
+    }
+
+    $scope.init();
+
+});
+{% endblock %}

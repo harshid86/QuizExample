@@ -1,0 +1,172 @@
+{% extends "_base.twig" %}
+{% set back = '/index.php/admin' %}
+{% block content %}
+                <div ng-controller="roundsCtrl">
+                    <h3>Rounds</h3>
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Round Name</th>
+                          <th>Questions</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr ng-repeat="round in roundsList">
+                          <td nowrap>
+                            <span ng-bind="round.Order"></span>&nbsp;
+                            <span>
+                              <button ng-disabled="round.Order == 1" class="btn btn-default btn-sm" ng-click="moveRound(round.id, 'up')">
+                                <span class="glyphicon glyphicon-chevron-up"></span>
+                              </button>
+                              <button ng-disabled="round.Order == roundsList.length" class="btn btn-default btn-sm" ng-click="moveRound(round.id, 'down')">
+                                <span class="glyphicon glyphicon-chevron-down"></span>
+                              </button>
+                            </span>
+                          </td>
+                          <td ng-bind="round.Name"></td>
+                          <td>
+                            <button class="btn btn-default" ng-click="configQuestions(round.id)">
+                              <span class="glyphicon glyphicon-wrench"></span>  Configure
+                            </button>
+                          </td>
+                          <td>
+                            <button class="btn btn-default" ng-click="editRound(round.id)">
+                              <span class="glyphicon glyphicon-pencil"></span>  Edit
+                            </button>
+                            <button class="btn btn-default" ng-click="deleteRound(round.id)">
+                              <span class="glyphicon glyphicon-remove"></span>  Delete
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <button ng-show="roundsMode != 'new'" class="btn btn-default" ng-click="newRound()"><span class="glyphicon glyphicon-plus-sign"></span>  Add New Round</button><br /><br />
+
+                    <div ng-cloak ng-show="roundsMode == 'new'">
+                      <h4>New Round</h4>
+                      <form class="form-horizontal">
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Round Name:</label>
+                          <div class="col-sm-10">
+                            <input class="form-control" type="text" ng-model="roundText" placeholder="Enter Name Here" />
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <div class="col-sm-offset-2 col-sm-10">
+                            <button class="btn btn-primary" ng-click="addRound()" type="submit">Add</button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div ng-cloak ng-show="roundsMode == 'update'">
+                      <h4>Update Round</h4>
+                      <form class="form-horizontal">
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Round Name:</label>
+                          <div class="col-sm-10">
+                            <input class="form-control" type="text" ng-model="roundText" placeholder="Enter Name Here">
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <div class="col-sm-offset-2 col-sm-10">
+                            <button class="btn btn-primary" ng-click="updateRound()" type="submit">Update</button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                </div>
+{% endblock %}
+
+{% block ajs_include %}
+
+<script src="/js/services/httpPost.js"></script>
+{% endblock %}
+
+{% block script %}
+app.controller("roundsCtrl", function($scope, $http, httpPost) {
+
+    $scope.loadRounds = function() {
+      $http.get("/index.php/ajax/rounds")
+        .success(function(response) {
+          $scope.roundsList = response;
+        });
+    }
+
+    $scope.newRound = function() {
+      $scope.clear();
+
+      $scope.roundsMode = 'new';
+    }
+
+    $scope.addRound = function() {
+      httpPost.send("/index.php/ajax/rounds/add", {
+          name: $scope.roundText
+        }).success(function(response) {
+          $scope.init();
+      });
+    }
+
+    $scope.editRound = function(id) {
+      $scope.clear();
+
+      $http.get("/index.php/ajax/round/" + id)
+        .success(function(response) {
+          $scope.roundText = response.Name;
+          $scope.roundId = response.id;
+
+          $scope.roundsMode = 'update';
+        });
+    }
+
+    $scope.updateRound = function() {
+      httpPost.send("/index.php/ajax/round/" + $scope.roundId + "/edit", {
+        name: $scope.roundText
+      }).success(function(response) {
+        $scope.init();
+      });
+    }
+
+    $scope.moveRound = function(id, direction) {
+
+      $http.get("/index.php/ajax/round/" + id + "/move" + direction)
+        .success(function(response) {
+          $scope.loadRounds();
+        });
+    }
+
+    $scope.deleteRound = function(id) {
+
+      $http.get("/index.php/ajax/round/" + id + "/delete")
+        .success(function(response) {
+          $scope.init();
+        });
+    }
+
+    $scope.configQuestions = function(id) {
+      window.location.assign("/index.php/admin/round/"+id+"/questions");
+    }
+
+    $scope.clear = function() {
+      $scope.roundText = '';
+      $scope.roundId = '';
+
+    }
+
+    $scope.init = function() {
+
+      $scope.roundsMode = 'default';
+
+      $scope.clear();
+
+      $scope.loadRounds();
+    }
+
+    $scope.init();
+
+});
+{% endblock %}

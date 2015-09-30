@@ -1,0 +1,249 @@
+{% extends "_base.twig" %}
+{% set back = '/index.php/admin/round/'~roundId~'/questions' %}
+{% block content %}
+                <div ng-controller="optionsCtrl">
+                    <h3>Answers</h3>
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Answer</th>
+                          <th>Score</th>
+                          <th>Image</th>
+                          <th>Correct?</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr ng-repeat="option in optionsList">
+                          <td>
+                            <span ng-bind="option.Order"></span>&nbsp;
+                            <span>
+                              <button ng-disabled="option.Order == 1" class="btn btn-default btn-sm" ng-click="moveOption(option.id, 'up')">
+                                <span class="glyphicon glyphicon-chevron-up"></span>
+                              </button>
+                              <button ng-disabled="option.Order == optionsList.length" class="btn btn-default btn-sm" ng-click="moveOption(option.id, 'down')">
+                                <span class="glyphicon glyphicon-chevron-down"></span>
+                              </button>
+                            </span>
+                          </td>
+                          <td ng-bind="option.OptionText"></td>
+                          <td ng-bind="option.OptionScore"></td>
+                          <td><img ng-src="/img/options/[[option.OptionImage]]" class="thumb-sm img-thumbnail"></td>
+                          <td>
+                            <button class="btn [[ option.id == correctOptionId ? 'btn-success' : 'btn-default' ]]" ng-click="makeCorrectAnswer(option.id)" title="Mark as Correct">
+                              <span class="glyphicon glyphicon-ok"></span>
+                            </button>
+                          </td>
+                          <td>
+                            <button class="btn btn-default" ng-click="editOption(option.id)">
+                              <span class="glyphicon glyphicon-pencil"></span>  Edit
+                            </button>
+                            <button class="btn btn-default" ng-click="deleteOption(option.id)">
+                              <span class="glyphicon glyphicon-remove"></span>  Delete
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <button ng-show="optionsMode != 'new'" class="btn btn-default" ng-click="newOption()"><span class="glyphicon glyphicon-plus-sign"></span>  Add New Answer</button><br /><br />
+
+                    <div ng-cloak ng-show="optionsMode == 'new'">
+                      <h4>New Answer</h4>
+                      <form class="form-horizontal">
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Answer:</label>
+                          <div class="col-sm-10">
+                            <input class="form-control" type="text" ng-model="optionText" placeholder="Enter Answer Here" />
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Score:</label>
+                          <div class="col-sm-10">
+                            <input class="form-control" type="text" ng-model="optionScore" placeholder="Enter Score Here" />
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Answer Image:</label>
+                          <div class="col-sm-10">
+                            <input ngf-select ng-model="files" class="form-control" type="file" />
+                          </div>
+                          <div class="col-sm-10">
+                            <img ng-show="files[0]" ngf-src="files[0]" ngf-default-src="/img/thumb.png" ngf-accept="'image/*'" class="thumb img-thumbnail">
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <div class="col-sm-offset-2 col-sm-10">
+                            <button class="btn btn-primary" ng-click="addOption()" type="submit">Add</button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div ng-cloak ng-show="optionsMode == 'update'">
+                      <h4>Update Answer</h4>
+                      <form class="form-horizontal">
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Answer:</label>
+                          <div class="col-sm-10">
+                            <input class="form-control" type="text" ng-model="optionText" placeholder="Enter Answer Here">
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Score:</label>
+                          <div class="col-sm-10">
+                            <input class="form-control" type="text" ng-model="optionScore" placeholder="Enter Score Here">
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <label class="col-sm-2 control-label">Answer Image:</label>
+                          <div class="col-sm-10">
+                            <input ngf-select ng-model="files" class="form-control" type="file">
+                          </div>
+                          <div class="col-sm-10">
+                            <img ng-show="files[0]" ngf-src="files[0]" ngf-default-src="/img/thumb.png" ngf-accept="'image/*'" class="thumb img-thumbnail">
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <div class="col-sm-offset-2 col-sm-10">
+                            <button class="btn btn-primary" ng-click="updateOption()" type="submit">Update</button>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                </div>
+{% endblock %}
+
+{% block ajs_include %}
+
+<script src="/js/services/httpPost.js"></script>
+{% endblock %}
+
+{% block script %}
+app.controller("optionsCtrl", function($scope, $http, Upload, httpPost) {
+
+    var roundId = {{ roundId }};
+    var questionId = {{ questionId }};
+
+    $scope.loadQuestion = function() {
+
+      $http.get("/index.php/ajax/question/" + questionId)
+        .success(function(response) {
+          $scope.correctOptionId = response.AnswerOptionId;
+        });
+    }
+
+    $scope.loadOptions = function() {
+      $http.get("/index.php/ajax/question/"+questionId+"/options")
+        .success(function(response) {
+          $scope.optionsList = response;
+
+          $scope.loadQuestion();
+        });
+    }
+
+    $scope.newOption = function() {
+      $scope.clear();
+
+      $scope.optionsMode = 'new';
+    }
+
+    $scope.addOption = function() {
+      httpPost.send("/index.php/ajax/options/add", {
+        option: $scope.optionText,
+        score: $scope.optionScore,
+        questionId: questionId,
+        isAnswer: false
+      }).success(function(response) {
+        $scope.init();
+        $scope.uploadImage(response, $scope.init);
+      });
+    }
+
+    $scope.updateOption = function() {
+      optionId = $scope.optionId;
+
+      httpPost.send("/index.php/ajax/option/" + optionId + "/edit", {
+        option: $scope.optionText,
+        score: $scope.optionScore,
+        questionId: questionId
+      }).success(function(response) {
+        $scope.init();
+        $scope.uploadImage(optionId, $scope.init);
+      });
+    }
+
+    $scope.uploadImage = function(optionId, successCallback) {
+      files = $scope.files;
+
+      if (files && files.length) {
+        for (var i = 0; i < files.length; i++) {
+          var file = files[i];
+          Upload.upload({
+            url: "/index.php/ajax/option/" + optionId + "/uploadimage",
+            file: file
+          }).success(function (data, status, headers, config) {
+            $scope.files = null;
+            successCallback();
+          });
+        }
+      }
+    }
+
+    $scope.editOption = function(id) {
+      $scope.clear();
+
+      $http.get("/index.php/ajax/option/" + id)
+        .success(function(response) {
+          $scope.optionId = response.id;
+          $scope.optionText = response.OptionText;
+          $scope.optionScore = response.OptionScore;
+
+          $scope.optionsMode = 'update';
+        });
+    }
+
+    $scope.moveOption = function(id, direction) {
+
+      $http.get("/index.php/ajax/option/" + id + "/move" + direction)
+        .success(function(response) {
+          $scope.loadOptions();
+        });
+    }
+
+    $scope.deleteOption = function(id) {
+
+      $http.get("/index.php/ajax/option/" + id + "/delete")
+        .success(function(response) {
+          $scope.loadOptions();
+        });
+    }
+
+    $scope.makeCorrectAnswer = function(id) {
+
+      $http.get("/index.php/ajax/option/" + id + "/edit/correctanswer")
+        .success(function(response) {
+          $scope.loadOptions();
+        });
+    }
+
+    $scope.clear = function() {
+      $scope.optionText = '';
+      $scope.optionScore = '';
+      $scope.optionId = '';
+    }
+
+    $scope.init = function() {
+      $scope.optionsMode = 'default';
+
+      $scope.clear();
+
+      $scope.loadOptions();
+    }
+
+    $scope.init();
+
+});
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "_base.twig" %}
+{% set back = '/index.php' %}
+{% block content %}
+        <div ng-controller="hostCtrl">
+
+        	<div ng-cloak class="text-center" ng-show="mode == 'noopengame'">
+						<h2 class="screen-title">Host</h2>
+            <h3>There is no active Game</h3>
+
+						<button ng-show="teamsMode != 'new'" class="btn btn-default btn-lg" ng-click="newGame()"><span class="glyphicon glyphicon-plus-sign"></span> Start New Game</button>
+					</div>
+
+                	
+        	<div ng-cloak class="text-center" ng-show="mode == 'hostmenu'">
+
+            <h2 class="screen-title">Host</h2>
+            <button class="btn btn-default btn-lg"  ng-click="play()"><span class="glyphicon glyphicon-play"></span> Resume Game</button>
+            <button class="btn btn-default btn-lg"  ng-click="resetGameModal()"><span class="glyphicon glyphicon-repeat"></span>  Reset Game</button>
+
+				    <script type="text/ng-template" id="modalResetGame.html">
+				        <div class="modal-header">
+				            <h3 class="modal-title">Reset the current Game?</h3>
+				        </div>
+				        <div class="modal-body">
+				            <p>This will erase any Game scores</p>
+				        </div>
+				        <div class="modal-footer">
+				            <button class="btn btn-danger" ng-click="yes()">Reset Game</button>
+				            <button class="btn btn-default" ng-click="no()">Cancel</button>
+				        </div>
+				    </script>
+					</div>
+
+				</div>
+{% endblock %}
+
+{% block script %}
+
+app.controller("hostCtrl", function($scope, $http, $timeout, $modal) {
+
+  $scope.init = function() {
+    $scope.mode = 'noopengame';
+    
+    $scope.checkForOpenGame();
+  }
+
+  $scope.checkForOpenGame = function() {
+    $http.get("/index.php/ajax/game/check")
+      .success(function(response) {
+
+        if (response === "1") {
+          $scope.hostMenu();
+        }
+      });
+  }
+
+  $scope.hostMenu = function() {
+    $scope.mode = 'hostmenu';
+    
+  }
+
+  $scope.play  = function() {
+      window.open("/index.php/host/play", "host");
+      window.location.assign("/index.php/host/play/controls");
+  };
+
+  $scope.newGame = function() {
+    $scope.play();
+
+  }
+
+  $scope.resetGame = function() {
+    $http.get("/index.php/ajax/game/reset")
+      .success(function(response) {
+        $scope.init();
+      });
+
+  }
+
+  $scope.resetGameModal = function() {
+    var modalInstance = $modal.open({
+      animation: true,
+      templateUrl: 'modalResetGame.html',
+      controller: 'ModalInstanceCtrl'
+    });
+
+    modalInstance.result.then(function () {
+      $scope.resetGame();
+    }, function () {
+      
+    });
+  }
+
+  $scope.init();
+});
+
+app.controller('ModalInstanceCtrl', function ($scope, $modalInstance) {
+
+  $scope.yes = function () {
+    $modalInstance.close();
+  };
+
+  $scope.no = function () {
+    $modalInstance.dismiss('cancel');
+  };
+});
+{% endblock %}

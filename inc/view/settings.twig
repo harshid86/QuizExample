@@ -1,0 +1,94 @@
+{% extends "_base.twig" %}
+{% set back = '/index.php/admin' %}
+{% block content %}
+                <div ng-controller="myQuizCtrl">
+                  <h3 class="screen-title">Settings</h3>
+                  
+                  <form class="form-horizontal">
+                    <h4>Game:</h4>
+                    <div class="form-group">
+                      <label class="col-sm-2 control-label">Welcome Pause Time:</label>
+                      <div class="col-sm-10">
+                        <div class="input-group">
+                          <input class="form-control" type="text" ng-model="settings.RoundPauseTime" />
+                          <div class="input-group-addon">Seconds</div>
+                        </div>
+                        <p class="help-block">Welcome screen pause time before starting the game</p>
+                      </div>
+                    </div>
+                    <h4>Questions:</h4>
+                    <div class="form-group">
+                      <label class="col-sm-2 control-label">Time Limit:</label>
+                      <div class="col-sm-10">
+                        <div class="input-group">
+                          <input class="form-control" type="text" ng-model="settings.QuestionTimeLimit" />
+                          <div class="input-group-addon">Seconds</div>
+                        </div>
+                        <p class="help-block">Time limit for each Question</p>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label class="col-sm-2 control-label">Choice Pause:</label>
+                      <div class="col-sm-10">
+                        <div class="input-group">
+                          <input class="form-control" type="text" ng-model="settings.ChoicePauseTime" />
+                          <div class="input-group-addon">Seconds</div>
+                        </div>
+                        <p class="help-block">Pause time after displaying the Players choice</p>
+                      </div>
+                    </div>
+                    <h4>Scoring:</h4>
+                    <!-- <div class="form-group">
+                      <label class="col-sm-2 control-label">Win Points:</label>
+                      <div class="col-sm-10">
+                        <input class="form-control" type="text" ng-model="settings.ScorePerWin" />
+                        <p class="help-block">How many points a Team receives for winning a Question</p>
+                      </div>
+                    </div> -->
+                    <div class="form-group">
+                      <label class="col-sm-2 control-label">Currency Symbol:</label>
+                      <div class="col-sm-10">
+                        <input class="form-control" type="text" ng-model="settings.CurrencySymbol" />
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <div class="col-sm-offset-2 col-sm-10">
+                        <button class="btn btn-primary" ng-click="saveSettings()" type="submit">Save</button>
+                      </div>
+                    </div>
+                  </form>
+
+                </div>
+{% endblock %}
+{% block script %}
+app.controller("myQuizCtrl", function($scope, $http) {
+
+    $scope.loadSettings = function() {
+      $http.get("/index.php/ajax/loadsettings")
+        .success(function(response) {
+
+          $scope.settings = response;
+        });
+    }
+
+    $scope.saveSettings = function() {
+
+      $http({
+          method: 'POST',
+          url: "/index.php/ajax/savesettings",
+          data: $scope.settings,
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+      }).success(function(response) {
+
+        $scope.init();
+      });
+    }
+
+    $scope.init = function() {
+      $scope.loadSettings();
+    }
+
+    $scope.init();
+
+});
+{% endblock %}

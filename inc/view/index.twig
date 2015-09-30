@@ -1,0 +1,25 @@
+{% extends "_base.twig" %}
+{% set back = '/index.php' %}
+{% block content %}
+                <div class="text-center" ng-controller="myQuizCtrl">
+                    <button class="btn btn-default btn-lg"  ng-click="player()">Player</button>
+                    <button class="btn btn-default btn-lg"  ng-click="host()">Host</button>
+                    <button class="btn btn-default btn-lg"  ng-click="admin()">Admin</button>
+                </div>
+{% endblock %}
+{% block script %}
+app.controller("myQuizCtrl", function($scope, $http) {
+
+    $scope.player  = function() {
+        window.location.assign("/index.php/player");
+    };
+
+    $scope.host = function() {
+        window.location.assign("/index.php/host");
+    };
+
+    $scope.admin  = function() {
+        window.location.assign("/index.php/admin");
+    };
+});
+{% endblock %}
