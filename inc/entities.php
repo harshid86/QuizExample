@@ -436,7 +436,8 @@ class Options extends Models
     private function _all($questionId)
     {
         return Model::factory('Option')
-                ->filter('hasQuestion', $questionId);
+                ->filter('hasQuestion', $questionId)
+                ->order_by_asc('Order');
     }
 
     public function loadAll($questionId)

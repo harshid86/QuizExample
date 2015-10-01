@@ -116,7 +116,7 @@ app.controller("questionsCtrl", function($scope, Questions) {
     }
 
     $scope.updateQuestion = function() {
-      Questions.updateQuestion($scope.questionId)
+      Questions.updateQuestion($scope.questionId, $scope.questionText)
         .success(function(response) {
           $scope.init();
         });

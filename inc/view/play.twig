@@ -71,6 +71,8 @@
                             <counter time="[[countdown]]" />
                         </div>
 
+                        <button ng-show="screen.isHostController() && questions.current.flags.timesUp" class="btn btn-default" ng-click="hostControls.nextQuestionButton()" type="submit">Next Question</button>
+
                         <div class="question-cell">
                         	<h1 class="question-text" ng-bind="questions.current.data.QuestionText"></h1>
                     	</div>
@@ -106,16 +108,17 @@
 <script src="/js/services/rounds.js"></script>
 <script src="/js/services/questions.js"></script>
 <script src="/js/services/options.js"></script>
+<script src="/js/services/play.js"></script>
 {% endblock %}
 
 {% block script %}
 
-app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, $log, $q, Counter, httpPost, Settings, Teams, Rounds, Questions, Options) {
+app.controller("myQuizCtrl", function($scope, $timeout, $sessionStorage, $log, Counter, Settings, Play) {
 
     var pollingInterval = 500;
 
-    $scope.isHost = {{ isHost }};
-    $scope.showControls = {{ showControls }};
+    var isHost = {{ isHost }};
+    var showControls = {{ showControls }};
 
     $scope.countdown = 0;
 
@@ -137,19 +140,19 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
         mode: 'default',
 
         isPlayer: function () {
-            return (!$scope.isHost);
+            return (!isHost);
         },
 
         isHost: function () {
-            return ($scope.isHost);
+            return (isHost);
         },
 
         isHostController: function () {
-            return ($scope.isHost && $scope.showControls);
+            return (isHost && showControls);
         },
 
         isHostDisplay: function () {
-            return ($scope.isHost && !$scope.showControls);
+            return (isHost && !showControls);
         },
 
         showChooseTeam: function () {
@@ -169,20 +172,15 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
 
         showRoundSplash: function (round) {
             $scope.logInfo("Display round splash screen for Round " + round.Name);
-            
-            $scope.rounds.canStart(function() {
-                
-                $scope.questions.load();
-            }, function() {
 
-                $scope.rounds.next();
-            }, function() {
-                
+            showScreen = function() {
                 $scope.screen.mode = 'newround';
-            });
+            }
+            
+            $scope.rounds.canStart($scope.loadQuestions, $scope.nextRound, showScreen, !$scope.screen.isHostController());
 
             if ($scope.screen.isHostController()) {
-                $scope.screen.mode = 'newround';
+                showScreen();
             }
         },
 
@@ -190,21 +188,16 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
 
             $scope.logInfo("Displaying question splash screen for Question: " + question.id);
 
+            showScreen = function() {
+                $scope.screen.mode = 'newquestionsplash';
+            }
+
             $scope.options.load(question.id);
 
-            $scope.questions.canStart(function() {
-                
-                $scope.screen.showQuestionOptions();
-            }, function () {
+            $scope.questions.canStart($scope.screen.showQuestionOptions, $scope.nextQuestion, showScreen, !$scope.screen.isHostController());
 
-                $scope.questions.next();
-            }, function() {
-
-                $scope.screen.mode = 'newquestionsplash';
-            });
-
-            if ($scope.screen.isHostController) {
-                $scope.screen.mode = 'newquestionsplash';
+            if ($scope.screen.isHostController()) {
+                showScreen();
             }
         },
 
@@ -215,9 +208,9 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
 
             $scope.countdown = Counter.start($scope.settings.QuestionTimeLimit, function () {
             	$scope.questions.canComplete(function() {
-		      		$scope.questions.current.finish();
+		      		$scope.finishQuestion();
 		      	}, function () {
-		      		$scope.questions.current.restart();
+		      		$scope.restartQuestion();
 		      	});
             });
         },
@@ -228,334 +221,6 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
 
     }
 
-    Teams.prototype = {
-        current: {
-            data: undefined,
-
-            check: function() {
-                var deferred = $q.defer();
-
-                if (this.current.data != undefined) {
-
-                    return this.getTeam(this.current.data.id);
-                }
-                else {
-                    deferred.reject();
-                }
-
-                return deferred.promise;
-            }
-
-        },
-
-        setCurrent: function(team) {
-            this.current.data = team;
-        }
-    }
-
-    $scope.teams = new Teams();
-
-    Rounds.prototype = {
-        current: {
-            data: undefined,
-
-            handle: 0
-        },
-
-        sendStartRound: function() {
-            return $http.get(this.baseUrl + "/roundprogress/" + this.current.data.id + "/start");
-        },
-
-        sendRevertRound: function() {
-            return $http.get(this.baseUrl + "/roundprogress/" + this.current.data.id + "/revert")
-        },
-
-        sendCompleteRound: function() {
-
-            return $http.get(this.baseUrl + "/roundprogress/" + this.current.data.id + "/complete")
-        },
-
-        canStart: function(startedCallback, completedCallback, callback) {
-            self = this;
-            recurse = function () {
-                self.canStart(startedCallback, completedCallback, callback);
-            }
-
-            $http.get(this.baseUrl + "/roundprogress/" + this.current.data.id)
-                .success(function(response) {
-                    if (response.Completed === "1"  && response.Started === "1") {
-
-                        $scope.logInfo("Round is already complete");
-
-                        completedCallback();
-                    }
-                    else if (response.Started === "1") {
-
-                        $scope.logInfo("Round has started");
-
-                        startedCallback();
-                    }
-                    else {
-
-                        if (!$scope.showControls) {
-                            $timeout(recurse, pollingInterval);
-                        }
-
-                        callback();
-                    }
-                });
-        },
-
-        canComplete: function(completedCallback, revertedCallback) {
-            self = this;
-            recurse = function () {
-                self.canComplete(completedCallback, revertedCallback);
-            }
-
-            $http.get(this.baseUrl + "/roundprogress/" + this.current.data.id)
-                .success(function(response) {
-                    if (response.Reverted === "1") {
-                        $scope.logInfo("This round has been Reverted");
-
-                        revertedCallback()
-                    }
-                    else if (response.Started === "1" && response.Completed === "1") {
-                        $scope.logInfo("This round has been Completed");
-
-                        completedCallback();
-                    }
-                    else {
-                        
-                        $timeout(recurse, pollingInterval);
-
-                        return false;
-                    }
-                });
-        },
-
-        restart: function() {
-            $scope.logInfo("Restart this round");
-
-            this.current.handle--;
-
-            this.current.data = this.list[this.current.handle];
-
-            if (this.current.data !== undefined) {
-                this.start();
-            } else {
-                this.load();
-            }
-        },
-
-        start: function() {
-            $scope.logInfo("Starting Rounds sequence");
-
-            this.current.data = this.list[this.current.handle];
-
-            if (this.current.data === undefined) {
-                this.next();
-                return;
-            }
-
-            $scope.screen.showRoundSplash(this.current.data);
-        },
-
-        next: function() {
-            $scope.logInfo("Go to next round");
-
-            this.current.handle++;
-
-            this.current.data = this.list[this.current.handle];
-
-            if (this.current.data !== undefined) {
-                this.start();
-            } else {
-                $scope.screen.showEndGame();
-            }
-        }
-    }
-
-    $scope.rounds = new Rounds();
-    $scope.round = $scope.rounds.current.data;
-
-    Questions.prototype = {
-
-        current: {
-            data: undefined,
-
-            handle: 0,
-
-            flags: {},
-
-            resetFlags: function () {
-                this.flags.timesUp = false;
-                this.flags.madeChoice = false;
-            }
-        },
-
-        sendStartQuestion: function() {
-            return $http.get(this.baseUrl + "/questionprogress/" + this.current.data.id + "/start")
-        },
-
-        sendRevertQuestion: function() {
-            $http.get(this.baseUrl + "/questionprogress/" + this.current.data.id + "/revert");
-        },
-
-        sendCompleteQuestion: function() {
-
-            return $http.get(this.baseUrl + "/questionprogress/" + this.current.data.id + "/complete")
-        },
-
-        canStart: function(startedCallback, completedCallback, callback) {
-            self = this;
-            recurse = function () {
-                self.canStart(startedCallback, completedCallback, callback);
-            }
-
-            $http.get(this.baseUrl + "/questionprogress/" + this.current.data.id)
-                .success(function(response) {
-                    if (response.Completed === "1"  && response.Started === "1") {
-                        $scope.logInfo("Question is already complete");
-
-                        completedCallback();
-                    }
-                    else if (response.Started === "1") {
-                        $scope.logInfo("Question started");
-
-                        startedCallback();
-                    }
-                    else {
-
-                        if (!$scope.showControls) {
-                            $timeout(recurse, pollingInterval);
-                        }
-
-                        callback();
-                    }
-                });
-        },
-
-        canComplete: function(completedCallback, revertedCallback) {
-            self = this;
-            recurse = function () {
-                self.canComplete(completedCallback, revertedCallback);
-            }
-
-            $http.get(this.baseUrl + "/questionprogress/" + this.current.data.id)
-                .success(function(response) {
-                    if (response.Reverted === "1") {
-                        $scope.logInfo("This question has been reverted");
-
-                        revertedCallback()
-                    }
-                    else if (response.Started === "1" && response.Completed === "1") {
-                        $scope.logInfo("This question has been completed");
-
-                        completedCallback();
-                    }
-                    else {
-                        
-                        $timeout(recurse, pollingInterval);
-                    }
-                });
-        },
-
-        finish: function() {
-            $scope.logInfo("Finish the question");
-
-            if (this.current.flags.madeChoice === false && !$scope.isHost) {
-                $scope.options.sendNoChoice($scope.team.id, this.current.data.id)
-                    .success(function(response) {
-                        $scope.logInfo("Empty choice logged");
-                    });
-            }
-
-            $scope.options.clear();
-            this.current.resetFlags();
-
-            this.next();
-        },
-
-        restart: function() {
-            $scope.logInfo("Go to last question");
-
-            this.current.handle--;
-
-            this.current.data = this.list[this.current.handle];
-
-            if (question !== undefined) {
-                this.start();
-            } else {
-                $scope.rounds.current.restart();
-            }
-        },
-
-        start: function() {
-            $scope.logInfo("Start Questions sequence");
-
-            this.current.data = this.list[this.current.handle];
-
-            if (this.current.data === undefined) {
-                this.next();
-                return;
-            }
-
-            $scope.screen.showQuestionSplash(this.current.data);
-        },
-
-        next: function() {
-            $scope.logInfo("Go to next question");
-
-            this.current.handle++;
-
-            this.current.data = this.list[this.current.handle];
-
-            if (this.current.data === undefined) {
-                $scope.rounds.next();
-            } else {
-                this.start();
-            }
-        }
-    }
-
-    $scope.questions = new Questions();
-    $scope.question = $scope.questions.current.data;
-
-    Options.prototype = {
-        hiddenList: [],
-
-        clear: function() {
-            this.list = [];
-        },
-
-        hideAllBut: function(option) {
-            this.hiddenList = this.list;
-            this.list = [option];
-        },
-
-        showAll: function() {
-            this.list = this.hiddenList;
-        },
-        
-        sendChoice: function(teamId, optionId) {
-            return httpPost.send(this.baseUrl + "/choices/add",
-            {
-                teamId: teamId,
-                optionId: optionId
-            });
-        },
-
-        sendNoChoice: function(teamId, questionId) {
-          
-            return httpPost.send(this.baseUrl + "/choices/addempty", {
-                    teamId: teamId,
-                    questionId: questionId
-                });
-        }
-    }
-
-    $scope.options = Options;
-
     $scope.hostControls = {
         startRoundButton: function() {
             $scope.logInfo("Host has started the Round");
@@ -564,14 +229,7 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
                 .success(function(response) {
                     $scope.logInfo("Tell server we have started the round");
 
-                    $scope.questions.load()
-                        .then(function() {
-                            if ($scope.questions.list.length > 0) {
-                                $scope.questions.start();
-                            } else {
-                                $scope.rounds.next();
-                            }
-                        });
+                    $scope.loadQuestions();
                 });
         },
 
@@ -585,28 +243,21 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
             $scope.logInfo("Host has completed this round");
 
             $scope.rounds.sendCompleteRound()
-                .success(function(response) {
-
-                    $scope.rounds.next();
-                });
+                .success($scope.nextRound);
         },
 
         lastRoundButton: function() {
-            $scope.logInfo("Revert round: " + $scope.rounds.current.data.id);
+            $scope.logInfo("Revert round");
 
             $scope.rounds.sendRevertRound()
-                .success(function(response) {
-                    $scope.rounds.restart();
-                });
+                .success($scope.restartRound);
         },
 
         startQuestionButton: function() {
             $scope.logInfo("Host has started the question");
 
             $scope.questions.sendStartQuestion()
-                .success(function(response) {
-                    $scope.screen.showQuestionOptions();
-                });
+                .success($scope.screen.showQuestionOptions);
         },
 
         nextQuestionButton:  function() {
@@ -619,25 +270,21 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
           $scope.logInfo("Host has completed this question");
 
           $scope.questions.sendCompleteQuestion()
-            .success(function(response) {
-                $scope.questions.next();
-            });
+            .success($scope.nextQuestion);
         },
 
         lastQuestionButton: function() {
-            $scope.logInfo("Revert question: " + $scope.questions.current.data.id);
+            $scope.logInfo("Revert question");
 
             $scope.questions.sendRevertQuestion()
-                .success(function(response) {
-                    $scope.questions.restart()
-                });
+                .success($scope.restartQuestion);
         }
     }
 
     $scope.playerControls = {
         makeChoice: function(option) {
 
-            if ($scope.isHost || $scope.questions.current.flags.timesUp) {
+            if ($scope.screen.isHost() || $scope.questions.current.flags.timesUp) {
                 return;
             }
 
@@ -662,18 +309,88 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
         }
     }
 
-    $scope.startGame = function() {
-        $scope.logInfo("Starting game");
+    $scope.teams = new Play.Teams();
 
+    $scope.rounds = new Play.Rounds();
+
+    $scope.questions = new Play.Questions();
+
+    $scope.options = new Play.Options();
+
+    $scope.loadRounds = function() {
         $scope.rounds.load()
             .then(function() {
 
                 if ($scope.rounds.list.length > 0) {
                     $scope.logInfo("Rounds data successfully loaded");
 
-                    $scope.rounds.start();
+                    $scope.startRounds();
                 }
             });
+    }
+
+    $scope.startRounds = function() {
+        $scope.rounds.start()
+            .then($scope.screen.showRoundSplash);
+    }
+
+    $scope.nextRound = function() {
+        $scope.rounds.next()
+            .then($scope.screen.showRoundSplash, $scope.screen.showEndGame);
+    }
+
+    $scope.restartRound = function() {
+        $scope.rounds.restart()
+            .then($scope.screen.showRoundSplash, $scope.loadRounds);
+    }
+
+    $scope.loadQuestions = function() {
+        $scope.questions.load($scope.rounds.current.data.id)
+            .then(function() {
+                if ($scope.questions.list.length > 0) {
+                    $scope.startQuestions();
+                } else {
+                    $scope.nextRound();
+                }
+            });
+    }
+
+    $scope.startQuestions = function() {
+        $scope.questions.start()
+            .then($scope.screen.showQuestionSplash, $scope.nextRound);
+    }
+
+    $scope.nextQuestion = function() {
+        $scope.questions.next()
+            .then($scope.screen.showQuestionSplash, $scope.nextRound);
+    }
+
+    $scope.restartQuestion = function() {
+        $scope.questions.restart()
+            .then($scope.screen.showQuestionSplash, $scope.restartRound);
+    }
+
+    $scope.finishQuestion = function() {
+        
+        $log.info("Finish the question");
+
+        if ($scope.questions.current.flags.madeChoice === false && !$scope.screen.isHost()) {
+            $scope.options.sendNoChoice($scope.team.id, $scope.questions.current.data.id)
+                .success(function(response) {
+                    $log.info("Empty choice logged");
+                });
+        }
+
+        $scope.options.clear();
+        $scope.questions.current.resetFlags();
+
+        $scope.nextQuestion();
+    }
+
+    $scope.startGame = function() {
+        $scope.logInfo("Starting game");
+
+        $scope.loadRounds();
     }
 
     $scope.setTeam = function() {
@@ -687,7 +404,7 @@ app.controller("myQuizCtrl", function($scope, $http, $timeout, $sessionStorage, 
     }
 
     $scope.welcome = function() {
-        if ($scope.isHost) {
+        if ($scope.screen.isHost()) {
             // For the host, show welcome screen
             $scope.screen.showWelcomeHost();
             return;

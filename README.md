@@ -9,6 +9,7 @@ Main areas of functionality are in the following files:
 
 * JS functionality:
  * /inc/view/play.twig
+ * /js/*
 
 * PHP functionality
  * /inc/routes.php

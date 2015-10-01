@@ -1,4 +1,4 @@
-app.service('Teams', function($http, httpPost, $q) {
+app.factory('Teams', function($http, httpPost, $q) {
      
     var Teams = function () {
         this.baseUrl = "/index.php/ajax";
