@@ -1,5 +1,7 @@
 app.factory('Play', function($log, $timeout, $q, $http, httpPost, Teams, Rounds, Questions, Options) {
      
+    var pollingInterval = 500;
+    
     Teams.prototype = {
         current: {
             data: undefined,
