@@ -85,17 +85,20 @@
 {% block ajs_include %}
 
 <script src="/js/services/httpPost.js"></script>
+<script src="/js/services/questions.js"></script>
 {% endblock %}
 
 {% block script %}
-app.controller("questionsCtrl", function($scope, $http, httpPost) {
+app.controller("questionsCtrl", function($scope, Questions) {
 
     var roundId = {{ roundId }};
 
+    var Questions = new Questions();
+
     $scope.loadQuestions = function() {
-      $http.get("/index.php/ajax/round/"+roundId+"/questions")
-        .success(function(response) {
-          $scope.questionsList = response;
+      Questions.load(roundId)
+        .then(function() {
+          $scope.questionsList = Questions.list;
         });
     }
 
@@ -106,18 +109,15 @@ app.controller("questionsCtrl", function($scope, $http, httpPost) {
     }
 
     $scope.addQuestion = function() {
-      httpPost.send("/index.php/ajax/questions/add", {
-          questionText: $scope.questionText,
-          roundId: roundId
-        }).success(function(response) {
+      Questions.addQuestion(roundId, $scope.questionText)
+        .success(function(response) {
           $scope.init();
         });
     }
 
     $scope.updateQuestion = function() {
-      httpPost.send("/index.php/ajax/question/" + $scope.questionId + "/edit", {
-          questionText: $scope.questionText
-        }).success(function(response) {
+      Questions.updateQuestion($scope.questionId)
+        .success(function(response) {
           $scope.init();
         });
     }
@@ -125,7 +125,7 @@ app.controller("questionsCtrl", function($scope, $http, httpPost) {
     $scope.editQuestion = function(id) {
       $scope.clear();
 
-      $http.get("/index.php/ajax/question/" + id)
+      Questions.getQuestion(id)
         .success(function(response) {
           $scope.questionText = response.QuestionText;
           $scope.questionId = response.id;
@@ -136,7 +136,7 @@ app.controller("questionsCtrl", function($scope, $http, httpPost) {
 
     $scope.moveQuestion = function(id, direction) {
 
-      $http.get("/index.php/ajax/question/" + id + "/move" + direction)
+      Questions.moveQuestion(id, direction)
         .success(function(response) {
           $scope.loadQuestions();
         });
@@ -144,7 +144,7 @@ app.controller("questionsCtrl", function($scope, $http, httpPost) {
 
     $scope.deleteQuestion = function(id) {
 
-      $http.get("/index.php/ajax/question/" + id + "/delete")
+      Questions.deleteQuestion(id)
         .success(function(response) {
           $scope.init();
         });

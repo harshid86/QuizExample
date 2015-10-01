@@ -119,26 +119,31 @@
 {% block ajs_include %}
 
 <script src="/js/services/httpPost.js"></script>
+<script src="/js/services/questions.js"></script>
+<script src="/js/services/options.js"></script>
 {% endblock %}
 
 {% block script %}
-app.controller("optionsCtrl", function($scope, $http, Upload, httpPost) {
+app.controller("optionsCtrl", function($scope, Questions, Options) {
 
     var roundId = {{ roundId }};
     var questionId = {{ questionId }};
 
+    var Questions = new Questions();
+    var Options = new Options();
+
     $scope.loadQuestion = function() {
 
-      $http.get("/index.php/ajax/question/" + questionId)
+      Questions.getQuestion(questionId)
         .success(function(response) {
           $scope.correctOptionId = response.AnswerOptionId;
         });
     }
 
     $scope.loadOptions = function() {
-      $http.get("/index.php/ajax/question/"+questionId+"/options")
-        .success(function(response) {
-          $scope.optionsList = response;
+      Options.load(questionId)
+        .then(function() {
+          $scope.optionsList = Options.list;
 
           $scope.loadQuestion();
         });
@@ -151,28 +156,21 @@ app.controller("optionsCtrl", function($scope, $http, Upload, httpPost) {
     }
 
     $scope.addOption = function() {
-      httpPost.send("/index.php/ajax/options/add", {
-        option: $scope.optionText,
-        score: $scope.optionScore,
-        questionId: questionId,
-        isAnswer: false
-      }).success(function(response) {
-        $scope.init();
-        $scope.uploadImage(response, $scope.init);
-      });
+      Options.addOption(questionId, $scope.optionText, $scope.optionScore)
+        .success(function(response) {
+          $scope.init();
+          $scope.uploadImage(response, $scope.init);
+        });
     }
 
     $scope.updateOption = function() {
       optionId = $scope.optionId;
 
-      httpPost.send("/index.php/ajax/option/" + optionId + "/edit", {
-        option: $scope.optionText,
-        score: $scope.optionScore,
-        questionId: questionId
-      }).success(function(response) {
-        $scope.init();
-        $scope.uploadImage(optionId, $scope.init);
-      });
+      Options.updateOption(optionId, $scope.optionText, $scope.optionScore)
+        .success(function(response) {
+          $scope.init();
+          $scope.uploadImage(optionId, $scope.init);
+        });
     }
 
     $scope.uploadImage = function(optionId, successCallback) {
@@ -181,13 +179,12 @@ app.controller("optionsCtrl", function($scope, $http, Upload, httpPost) {
       if (files && files.length) {
         for (var i = 0; i < files.length; i++) {
           var file = files[i];
-          Upload.upload({
-            url: "/index.php/ajax/option/" + optionId + "/uploadimage",
-            file: file
-          }).success(function (data, status, headers, config) {
-            $scope.files = null;
-            successCallback();
-          });
+
+          Options.uploadImage(optionId, file)
+            .success(function (data, status, headers, config) {
+              $scope.files = null;
+              successCallback();
+            });
         }
       }
     }
@@ -195,7 +192,7 @@ app.controller("optionsCtrl", function($scope, $http, Upload, httpPost) {
     $scope.editOption = function(id) {
       $scope.clear();
 
-      $http.get("/index.php/ajax/option/" + id)
+      Options.getOption(id)
         .success(function(response) {
           $scope.optionId = response.id;
           $scope.optionText = response.OptionText;
@@ -207,7 +204,7 @@ app.controller("optionsCtrl", function($scope, $http, Upload, httpPost) {
 
     $scope.moveOption = function(id, direction) {
 
-      $http.get("/index.php/ajax/option/" + id + "/move" + direction)
+      Options.moveOption(id, direction)
         .success(function(response) {
           $scope.loadOptions();
         });
@@ -215,7 +212,7 @@ app.controller("optionsCtrl", function($scope, $http, Upload, httpPost) {
 
     $scope.deleteOption = function(id) {
 
-      $http.get("/index.php/ajax/option/" + id + "/delete")
+      Options.moveOption(id)
         .success(function(response) {
           $scope.loadOptions();
         });
@@ -223,7 +220,7 @@ app.controller("optionsCtrl", function($scope, $http, Upload, httpPost) {
 
     $scope.makeCorrectAnswer = function(id) {
 
-      $http.get("/index.php/ajax/option/" + id + "/edit/correctanswer")
+      Options.makeCorrectAnswer(id)
         .success(function(response) {
           $scope.loadOptions();
         });

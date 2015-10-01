@@ -1,7 +1,7 @@
 {% extends "_base.twig" %}
 {% set back = '/index.php/admin' %}
 {% block content %}
-                <div ng-controller="myQuizCtrl">
+                <div ng-controller="settingsCtrl">
                   <h3 class="screen-title">Settings</h3>
                   
                   <form class="form-horizontal">
@@ -60,28 +60,31 @@
 
                 </div>
 {% endblock %}
+
+{% block ajs_include %}
+
+<script src="/js/services/httpPost.js"></script>
+<script src="/js/services/settings.js"></script>
+{% endblock %}
+
 {% block script %}
-app.controller("myQuizCtrl", function($scope, $http) {
+app.controller("settingsCtrl", function($scope, Settings) {
 
     $scope.loadSettings = function() {
-      $http.get("/index.php/ajax/loadsettings")
+      Settings.load()
         .success(function(response) {
 
-          $scope.settings = response;
+          $scope.settings = Settings.get();
         });
     }
 
     $scope.saveSettings = function() {
 
-      $http({
-          method: 'POST',
-          url: "/index.php/ajax/savesettings",
-          data: $scope.settings,
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'}
-      }).success(function(response) {
+      Settings.save($scope.settings)
+        .success(function(response) {
 
-        $scope.init();
-      });
+          $scope.init();
+        });
     }
 
     $scope.init = function() {
